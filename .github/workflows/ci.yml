@@ -1,0 +1,72 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        run: echo "repo=$(echo '${{ github.repository }}' | tr 'A-Z' 'a-z')" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ steps.meta.outputs.repo }}:v1
+            ghcr.io/${{ steps.meta.outputs.repo }}:${{ github.sha }}
+
+      - name: smoke test the published image
+        run: |
+          docker run -d --name gw -p 8000:8000 \
+            ghcr.io/${{ steps.meta.outputs.repo }}:${{ github.sha }}
+          for i in $(seq 1 30); do
+            if curl -sf localhost:8000/health >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -sf localhost:8000/health | grep -q '"ok"'
+          echo "health ok"
+          # the service must still answer with a valid schedule when no API key is
+          # configured: every note degrades to no_op rather than failing
+          python - <<'PY'
+          import json, urllib.request
+          case = json.load(open("samples/public_sample_cases.json"))["cases"][0]["input"]
+          req = urllib.request.Request(
+              "http://localhost:8000/optimize-energy",
+              data=json.dumps(case).encode(),
+              headers={"Content-Type": "application/json"})
+          out = json.load(urllib.request.urlopen(req, timeout=60))
+          assert out["scenario_id"] == case["scenario_id"]
+          assert len(out["hourly_plan"]) == 24
+          assert len(out["directive_interpretation"]) == len(case["operator_notes"])
+          print("degraded-mode optimize-energy ok, cost", out["total_cost_bdt"])
+          PY
+      - name: image digest
+        run: docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ steps.meta.outputs.repo }}:${{ github.sha }} || true

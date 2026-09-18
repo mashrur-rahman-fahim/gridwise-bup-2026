@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+venv
+tests
+*.md
+!README.md
+.env
+*.env
+*.key
+.gemini*
+.cf.env
+.authorship-denylist
+__pycache__
+*.pyc
+.pytest_cache
+*.pdf
