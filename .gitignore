@@ -1,0 +1,13 @@
+.authorship-denylist
+PLAN.md
+*.pdf
+.env
+*.env
+!.env.example
+*.key
+.gemini*
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
