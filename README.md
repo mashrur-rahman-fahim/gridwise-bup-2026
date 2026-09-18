@@ -341,6 +341,33 @@ Request and response follow the Problem Statement exactly. Status codes:
 | `400` | Malformed JSON or structurally invalid request |
 | `500` | Controlled internal error; generic body, never a stack trace |
 
+#### Sample response
+
+Public case `SAMPLE-01`, taken from the live service. `hourly_plan` carries all 24
+rows; a few are shown here.
+
+```json
+{
+  "scenario_id": "SAMPLE-01",
+  "directive_interpretation": [
+    {"note_index": 0, "applies": true, "directive_type": "solar_reduction", "structured_adjustment": {"hours": [12, 13], "factor": 0.25}, "explanation": "Usable solar limited to 25% of forecast during hours 12-13."},
+    {"note_index": 1, "applies": false, "directive_type": "no_op", "structured_adjustment": null, "explanation": "This note does not affect today's 24-hour energy schedule."}
+  ],
+  "hourly_plan": [
+    {"hour": 0, "grid_kwh": 40.0, "solar_used_kwh": 0.0, "battery_action": "discharge", "battery_kwh": 50.0, "battery_energy_after_kwh": 60.0},
+    {"hour": 3, "grid_kwh": 130.0, "solar_used_kwh": 0.0, "battery_action": "charge", "battery_kwh": 50.0, "battery_energy_after_kwh": 140.0},
+    ...
+    {"hour": 12, "grid_kwh": 90.0, "solar_used_kwh": 45.0, "battery_action": "discharge", "battery_kwh": 50.0, "battery_energy_after_kwh": 70.0},
+    {"hour": 19, "grid_kwh": 165.0, "solar_used_kwh": 0.0, "battery_action": "discharge", "battery_kwh": 50.0, "battery_energy_after_kwh": 90.0},
+    {"hour": 23, "grid_kwh": 155.0, "solar_used_kwh": 0.0, "battery_action": "charge", "battery_kwh": 50.0, "battery_energy_after_kwh": 110.0}
+  ],
+  "total_grid_kwh": 2692.5,
+  "total_cost_bdt": 38365.0,
+  "peak_grid_kwh": 187.5,
+  "plan_summary": "Applied operator directives: solar_reduction. Charges the battery during 9 low-tariff hours. Discharges across 10 higher-tariff hours. Battery returns to its initial level by the end of hour 23. Total grid cost 38365.00 BDT."
+}
+```
+
 ---
 
 ## Testing
@@ -364,6 +391,16 @@ Run just the public-sample check:
 ```bash
 pytest tests/test_public_cases.py -q      # expect: 10 passed
 ```
+
+Against a running service, including the deployed one:
+
+```bash
+./scripts/live_test.sh https://gridwise.mashrurrahman.com
+
+GRIDWISE_URL=https://gridwise.mashrurrahman.com pytest tests/test_live_endpoint.py -q
+```
+
+`tests/test_live_endpoint.py` skips unless `GRIDWISE_URL` is set, so CI is unaffected.
 
 ---
 
@@ -436,6 +473,28 @@ accumulated, so the published rows reproduce the totals exactly when recomputed.
 Before responding, the finished plan is replayed by `app/replay.py` — written
 independently of the optimizer, so a shared misreading of the specification cannot
 hide itself.
+
+---
+
+## Project layout
+
+```
+app/
+  main.py            FastAPI app, both endpoints, orchestration, self-audit
+  schemas.py         request and response models
+  llm.py             prompt, Gemini call, retry and degradation
+  repair.py          coercion of unambiguous model slips
+  guardrail.py       deterministic validation of model output
+  apply.py           directives to optimizer bounds, tightest wins
+  optimizer.py       linear program and infeasibility fallback
+  postprocess.py     battery netting, rounding, totals
+  replay.py          independent schedule replay
+  contract_audit.py  full response-contract audit
+  web/index.html     browser dashboard
+tests/               unit, corner-case, fuzz, contract and live suites
+samples/             public sample cases
+scripts/live_test.sh smoke test against a running service
+```
 
 ---
 
