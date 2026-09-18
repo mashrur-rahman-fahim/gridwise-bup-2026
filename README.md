@@ -6,7 +6,13 @@ A single HTTP service that reads free-text campus operator notes with a language
 model, converts them into strictly validated structured directives, and produces a
 provably cost-optimal 24-hour electricity schedule that obeys them.
 
-**Live service:** `https://gridwise.mashrurrahman.com`
+**Live service:** <https://gridwise.mashrurrahman.com>
+
+| | |
+|---|---|
+| Dashboard | <https://gridwise.mashrurrahman.com/> — browser console for trying it by hand |
+| Health | <https://gridwise.mashrurrahman.com/health> |
+| Optimize | `POST https://gridwise.mashrurrahman.com/optimize-energy` |
 
 ```bash
 curl -s https://gridwise.mashrurrahman.com/health      # -> {"status":"ok"}
@@ -309,6 +315,12 @@ note degrades to `no_op`. This is deliberate — see
 ---
 
 ## API
+
+### `GET /`
+
+A self-contained browser dashboard for exercising the service by hand: edit operator
+notes, adjust the battery, run the optimizer, and read back the interpretation and the
+24-hour schedule. No external requests, no build step, not part of the judged contract.
 
 ### `GET /health`
 

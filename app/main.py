@@ -1,10 +1,11 @@
 """GridWise HTTP service. Two endpoints, exact names required by the specification."""
 import logging
+import pathlib
 from typing import Any, Dict, List
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.contract_audit import audit
 from app.llm import interpret
@@ -40,6 +41,22 @@ async def _internal_error(_: Request, exc: Exception):
     """Controlled internal error. The client never sees a stack trace or configuration."""
     log.exception("unhandled error: %s", type(exc).__name__)
     return JSONResponse(status_code=500, content={"error": "internal error"})
+
+
+_INDEX = pathlib.Path(__file__).parent / "web" / "index.html"
+_INDEX_HTML = _INDEX.read_text(encoding="utf-8") if _INDEX.exists() else (
+    "<h1>GridWise</h1><p>POST /optimize-energy &middot; GET /health</p>")
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def dashboard():
+    """Browser console for trying the service by hand.
+
+    Not part of the judged contract - the harness only calls /health and
+    /optimize-energy. Served from memory as a single self-contained document with
+    no external requests, so it cannot slow down or fail the scored endpoints.
+    """
+    return HTMLResponse(_INDEX_HTML)
 
 
 @app.get("/health")

@@ -1,0 +1,257 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GridWise — Operator Directive Interpreter</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --panel:#fff; --ink:#15181d; --muted:#697280; --line:#e3e6ec;
+    --accent:#2f6df6; --accent-soft:#eaf0ff; --grid:#f0a33c; --solar:#f5c542;
+    --batt:#38a169; --warn:#c2410c; --radius:10px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#0f1216;--panel:#171b21;--ink:#e8eaee;--muted:#98a1ae;--line:#272d36;
+          --accent:#5b8cff;--accent-soft:#1b2540;}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{border-bottom:1px solid var(--line);background:var(--panel)}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+  .bar{display:flex;align-items:center;gap:14px;padding:16px 0;flex-wrap:wrap}
+  .logo{font-weight:650;font-size:17px;letter-spacing:-.2px}
+  .tag{font-size:12px;color:var(--muted)}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#9aa3af;margin-right:6px}
+  .dot.up{background:#23a45a}.dot.down{background:#d64545}
+  .status{margin-left:auto;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  main{padding:22px 0 60px}
+  .cols{display:grid;grid-template-columns:400px 1fr;gap:20px;align-items:start}
+  @media (max-width:900px){.cols{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .card+.card{margin-top:14px}
+  h2{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+  label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px}
+  textarea,input,select{width:100%;background:transparent;color:var(--ink);
+    border:1px solid var(--line);border-radius:7px;padding:8px 10px;font:inherit;font-size:13.5px}
+  textarea{resize:vertical;min-height:52px}
+  textarea:focus,input:focus,select:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  button{border:0;border-radius:7px;padding:10px 16px;font:inherit;font-weight:560;cursor:pointer}
+  .primary{background:var(--accent);color:#fff;width:100%;margin-top:14px}
+  .primary:disabled{opacity:.55;cursor:default}
+  .ghost{background:transparent;color:var(--accent);border:1px solid var(--line);padding:5px 10px;font-size:12.5px}
+  .notes-row{display:flex;gap:6px;align-items:flex-start;margin-bottom:6px}
+  .notes-row button{background:transparent;color:var(--muted);padding:6px 8px;font-size:15px;line-height:1}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+  .empty{color:var(--muted);font-size:13.5px;padding:28px 0;text-align:center}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  @media (max-width:640px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+  .kpi .v{font-size:21px;font-weight:620;font-variant-numeric:tabular-nums;letter-spacing:-.4px}
+  .kpi .k{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+  .dir{border:1px solid var(--line);border-radius:8px;padding:11px 13px;margin-bottom:8px}
+  .dir .hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .pill{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+  .pill.off{background:transparent;color:var(--muted);border:1px solid var(--line)}
+  .note-txt{font-size:13px;color:var(--muted);margin:6px 0 5px;font-style:italic}
+  .adj{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--ink);
+       background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:4px 7px;display:inline-block}
+  .exp{font-size:12.5px;margin-top:6px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+  th{text-align:right;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;
+     letter-spacing:.05em;padding:6px 8px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  td{padding:5px 8px;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:0}
+  .barcell{width:34%;padding-right:0}
+  .stack{display:flex;height:13px;border-radius:3px;overflow:hidden;background:var(--bg)}
+  .seg{height:100%}
+  .act{font-size:11px;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
+  .act.charge{color:var(--batt);border-color:var(--batt)}
+  .act.discharge{color:var(--accent);border-color:var(--accent)}
+  .legend{display:flex;gap:14px;font-size:11.5px;color:var(--muted);margin:10px 0 4px;flex-wrap:wrap}
+  .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  .err{background:#fff4ed;border:1px solid #f3c9ae;color:var(--warn);padding:10px 12px;border-radius:7px;font-size:13px}
+  @media (prefers-color-scheme:dark){.err{background:#2a1a12;border-color:#5a3a28}}
+  .summary{font-size:13px;color:var(--muted);border-left:2px solid var(--line);padding-left:11px;margin-top:12px}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+  footer{border-top:1px solid var(--line);margin-top:34px;padding:16px 0;color:var(--muted);font-size:12.5px}
+  a{color:var(--accent);text-decoration:none}
+</style>
+
+<header><div class="wrap"><div class="bar">
+  <div>
+    <div class="logo">GridWise</div>
+    <div class="tag">LLM-assisted operator directive interpretation · 24-hour energy scheduling</div>
+  </div>
+  <div class="status"><span class="dot" id="dot"></span><span id="health">checking…</span></div>
+</div></div></header>
+
+<main class="wrap"><div class="cols">
+
+  <section>
+    <div class="card">
+      <h2>Operator notes</h2>
+      <div class="chips">
+        <button class="ghost" data-preset="solar">solar cut</button>
+        <button class="ghost" data-preset="reserve">reserve</button>
+        <button class="ghost" data-preset="cap">grid cap</button>
+        <button class="ghost" data-preset="charge">no charging</button>
+        <button class="ghost" data-preset="noise">distractor</button>
+      </div>
+      <div id="notes"></div>
+      <button class="ghost" id="addNote">+ add note</button>
+    </div>
+
+    <div class="card">
+      <h2>Battery</h2>
+      <div class="grid2">
+        <div><label>capacity kWh</label><input id="cap" type="number" value="220"></div>
+        <div><label>initial kWh</label><input id="init" type="number" value="110"></div>
+        <div><label>minimum kWh</label><input id="min" type="number" value="40"></div>
+        <div><label>max charge /h</label><input id="mc" type="number" value="50"></div>
+        <div><label>max discharge /h</label><input id="md" type="number" value="50"></div>
+        <div><label>demand profile</label>
+          <select id="profile">
+            <option value="campus">campus day</option>
+            <option value="flat">flat load</option>
+            <option value="peaky">sharp evening peak</option>
+          </select>
+        </div>
+      </div>
+      <button class="primary" id="run">Optimize 24 hours</button>
+    </div>
+  </section>
+
+  <section>
+    <div id="out"><div class="card"><div class="empty">Add a note and run the optimizer to see the interpretation and schedule.</div></div></div>
+  </section>
+
+</div></main>
+
+<footer class="wrap">
+  <code>POST /optimize-energy</code> · <code>GET /health</code> ·
+  the language model reads the notes, deterministic guardrails validate them, a linear program builds the schedule
+</footer>
+
+<script>
+const PRESETS={
+  solar:"Panel washing will leave only about 20% of normal rooftop solar from 1 PM to 3 PM.",
+  reserve:"Keep at least 120 kWh in the battery from 6 PM until 9 PM for emergency services.",
+  cap:"Feeder limit: grid import must stay at or below 175 kWh from 6 PM to 9 PM.",
+  charge:"The battery charger is isolated from 2 AM until 5 AM for electrical maintenance.",
+  noise:"The cafeteria is trialling a new menu next Thursday."
+};
+const PROFILES={
+  campus:[90,85,80,80,85,95,110,130,150,165,175,180,185,180,170,165,170,185,205,215,205,175,135,105],
+  flat:  Array(24).fill(140),
+  peaky: [70,65,60,60,65,75,95,120,140,150,155,160,160,155,150,150,170,200,240,260,245,190,120,85]
+};
+const SOLAR=[0,0,0,0,0,0,5,20,50,90,130,160,180,170,140,90,45,10,0,0,0,0,0,0];
+const TARIFF=[6,6,5,5,5,6,8,10,12,14,16,16,15,14,13,14,18,22,28,30,26,18,10,7];
+
+const $=s=>document.querySelector(s);
+const notesEl=$("#notes");
+
+function addNote(text=""){
+  if(notesEl.children.length>=3) return;
+  const row=document.createElement("div"); row.className="notes-row";
+  const ta=document.createElement("textarea"); ta.value=text; ta.placeholder="e.g. Solar drops to 20% from 1 PM to 3 PM.";
+  const rm=document.createElement("button"); rm.textContent="×"; rm.title="remove";
+  rm.onclick=()=>{row.remove(); syncAdd();};
+  row.append(ta,rm); notesEl.append(row); syncAdd();
+}
+function syncAdd(){ $("#addNote").style.display = notesEl.children.length>=3 ? "none":"inline-block"; }
+document.querySelectorAll("[data-preset]").forEach(b=>b.onclick=()=>addNote(PRESETS[b.dataset.preset]));
+$("#addNote").onclick=()=>addNote();
+addNote(PRESETS.solar); addNote(PRESETS.noise);
+
+async function health(){
+  try{
+    const r=await fetch("/health"); const j=await r.json();
+    $("#dot").className="dot "+(j.status==="ok"?"up":"down");
+    $("#health").textContent=j.status==="ok"?"service ready":"degraded";
+  }catch{ $("#dot").className="dot down"; $("#health").textContent="unreachable"; }
+}
+health();
+
+const money=n=>n.toLocaleString(undefined,{maximumFractionDigits:0});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+$("#run").onclick=async()=>{
+  const notes=[...notesEl.querySelectorAll("textarea")].map(t=>t.value.trim()).filter(Boolean);
+  if(!notes.length){ addNote(PRESETS.solar); return; }
+  const demand=PROFILES[$("#profile").value];
+  const body={
+    scenario_id:"WEB-"+Date.now(),
+    operator_notes:notes,
+    hours:demand.map((d,h)=>({hour:h,demand_kwh:d,solar_kwh:SOLAR[h],tariff_bdt_per_kwh:TARIFF[h]})),
+    battery:{capacity_kwh:+$("#cap").value,initial_energy_kwh:+$("#init").value,
+             minimum_energy_kwh:+$("#min").value,max_charge_kwh_per_hour:+$("#mc").value,
+             max_discharge_kwh_per_hour:+$("#md").value}
+  };
+  const btn=$("#run"); btn.disabled=true; btn.textContent="Interpreting…";
+  const t0=performance.now();
+  try{
+    const r=await fetch("/optimize-energy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const j=await r.json();
+    if(!r.ok){ $("#out").innerHTML=`<div class="card"><div class="err"><b>HTTP ${r.status}</b> — ${esc(j.error||"request rejected")}</div></div>`; return; }
+    render(j, demand, performance.now()-t0);
+  }catch(e){
+    $("#out").innerHTML=`<div class="card"><div class="err">Request failed: ${esc(e.message)}</div></div>`;
+  }finally{ btn.disabled=false; btn.textContent="Optimize 24 hours"; }
+};
+
+function render(j, demand, ms){
+  const notes=[...notesEl.querySelectorAll("textarea")].map(t=>t.value.trim()).filter(Boolean);
+  const maxFlow=Math.max(...j.hourly_plan.map(r=>r.grid_kwh+r.solar_used_kwh+(r.battery_action==="discharge"?r.battery_kwh:0)),1);
+
+  const kpis=`<div class="kpis">
+    <div class="kpi"><div class="v">৳${money(j.total_cost_bdt)}</div><div class="k">total cost</div></div>
+    <div class="kpi"><div class="v">${money(j.total_grid_kwh)}</div><div class="k">grid kWh</div></div>
+    <div class="kpi"><div class="v">${money(j.peak_grid_kwh)}</div><div class="k">peak kWh/h</div></div>
+    <div class="kpi"><div class="v">${(ms/1000).toFixed(1)}s</div><div class="k">response</div></div>
+  </div>`;
+
+  const dirs=j.directive_interpretation.map(d=>`
+    <div class="dir">
+      <div class="hd">
+        <span class="pill ${d.applies?"":"off"}">${d.applies?"applied":"ignored"}</span>
+        <b style="font-size:13.5px">${esc(d.directive_type)}</b>
+        ${d.structured_adjustment?`<span class="adj">${esc(JSON.stringify(d.structured_adjustment))}</span>`:""}
+      </div>
+      <div class="note-txt">“${esc(notes[d.note_index]||"")}”</div>
+      <div class="exp">${esc(d.explanation)}</div>
+    </div>`).join("");
+
+  const rows=j.hourly_plan.map(r=>{
+    const dis=r.battery_action==="discharge"?r.battery_kwh:0;
+    const w=x=>(x/maxFlow*100).toFixed(1)+"%";
+    return `<tr>
+      <td>${String(r.hour).padStart(2,"0")}:00</td>
+      <td class="barcell"><div class="stack">
+        <div class="seg" style="width:${w(r.grid_kwh)};background:var(--grid)"></div>
+        <div class="seg" style="width:${w(r.solar_used_kwh)};background:var(--solar)"></div>
+        <div class="seg" style="width:${w(dis)};background:var(--batt)"></div>
+      </div></td>
+      <td>${r.grid_kwh.toFixed(1)}</td>
+      <td>${r.solar_used_kwh.toFixed(1)}</td>
+      <td>${r.battery_action==="idle"?'<span class="act">idle</span>':`<span class="act ${r.battery_action}">${r.battery_action==="charge"?"+":"−"}${r.battery_kwh.toFixed(0)}</span>`}</td>
+      <td>${r.battery_energy_after_kwh.toFixed(0)}</td>
+      <td>${TARIFF[r.hour]}</td>
+    </tr>`;}).join("");
+
+  $("#out").innerHTML = kpis + `
+    <div class="card"><h2>Interpretation</h2>${dirs}
+      <div class="summary">${esc(j.plan_summary)}</div></div>
+    <div class="card"><h2>24-hour schedule</h2>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--grid)"></i>grid</span>
+        <span><i class="sw" style="background:var(--solar)"></i>solar used</span>
+        <span><i class="sw" style="background:var(--batt)"></i>battery discharge</span>
+      </div>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>hour</th><th class="barcell">energy mix</th><th>grid</th><th>solar</th><th>battery</th><th>stored</th><th>৳/kWh</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    </div>`;
+}
+</script>
