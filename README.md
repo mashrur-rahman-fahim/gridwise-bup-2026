@@ -6,6 +6,17 @@ A single HTTP service that reads free-text campus operator notes with a language
 model, converts them into strictly validated structured directives, and produces a
 provably cost-optimal 24-hour electricity schedule that obeys them.
 
+**Live service:** `https://gridwise.mashrurrahman.com`
+
+```bash
+curl -s https://gridwise.mashrurrahman.com/health      # -> {"status":"ok"}
+```
+
+Measured against the ten public sample cases on the live endpoint: every operator
+note interpreted exactly, total cost equal to the organizer optimal on all ten, all
+ten valid under an independent replay against ground-truth directives, p95 latency
+2.5 s against a 5 s budget.
+
 ---
 
 ## Contents
@@ -182,6 +193,13 @@ JSON
 ---
 
 ## Docker (fallback execution path)
+
+Exact pullable reference (tag and digest):
+
+```
+ghcr.io/mashrur-rahman-fahim/gridwise-bup-2026:v1
+ghcr.io/mashrur-rahman-fahim/gridwise-bup-2026@sha256:31fe316256fc5bb9fd63bdbb3c14d81f8766a25bc90f91259b0335f9b496df59
+```
 
 ```bash
 docker pull ghcr.io/mashrur-rahman-fahim/gridwise-bup-2026:v1
