@@ -86,7 +86,7 @@ resulting schedule.
  │ 5. Apply           directives become variable bounds     │
  ├──────────────────────────────────────────────────────────┤
  │ 6. Optimize        PuLP -> CBC linear program            │
- │    120 variables, 49 constraints, ~10 ms                 │
+ │    120 variables, 49 constraints, ~10 ms median          │
  ├──────────────────────────────────────────────────────────┤
  │ 7. Post-process    net battery, round, sum rounded rows  │
  ├──────────────────────────────────────────────────────────┤
@@ -457,6 +457,12 @@ battery recurrence, and end-of-day neutrality. CBC reports `Optimal` only with a
 proof certificate, so a solved schedule is the cheapest legal one for those
 directives — not a heuristic's best guess.
 
+The objective prices grid energy only, with no tie-break between equally-priced
+plans. When every hour carries the same tariff there is nothing to separate two
+schedules of identical cost, so which one is returned — and therefore the reported
+`solar_used_kwh` and `peak_grid_kwh` — depends on which optimal vertex the solver
+lands on. Cost, the scored quantity, is unaffected.
+
 Where two directives of the same type overlap on an hour, the **tighter** value
 wins. Over-constraining keeps a plan valid; under-constraining does not.
 
@@ -533,8 +539,13 @@ design in full.
   phrasings outside that distribution remain the principal residual risk.
 - **No response caching.** Hidden notes are unseen by definition, so a cache would
   never hit during evaluation.
-- **Single worker.** One uvicorn worker keeps behaviour deterministic. Concurrency is
-  handled by the async event loop; the solver itself takes about 10 ms.
+- **Single worker, and the solver blocks it.** One uvicorn worker keeps behaviour
+  deterministic. The model call is awaited and does not block, so several requests
+  can have calls in flight at once, but the linear program runs inline on the event
+  loop: about 10 ms median, up to ~22 ms, and ~38 ms on the rare path where an
+  infeasible directive set is retried as subsets. Under heavy concurrency those
+  blocking slices serialise. They are small next to the 1.5-2.5 s model call, so
+  this has not been worth moving to a worker thread.
 
 ---
 
