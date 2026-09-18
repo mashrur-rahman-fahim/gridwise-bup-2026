@@ -39,11 +39,31 @@ RULES - follow exactly:
    "only 60 percent usable" -> 0.6   "halves solar" -> 0.5   "a 40% drop" -> 0.6
 3. RESERVES expressed as a percentage are a share of BATTERY CAPACITY. Do the
    arithmetic yourself and output kWh. Capacity is given below.
-4. A note that does not change today's 24-hour electricity schedule is no_op.
+4. CHARGING means energy flowing INTO the battery. DISCHARGING means energy flowing
+   OUT of the battery to serve demand. Operators phrase these loosely - decide by
+   DIRECTION, not by the word "draw":
+     into the battery  -> no_charge_window
+       "pack intake", "battery intake", "charging the storage", "grid draw into the
+       pack", "BESS grid draw", "mains import to the storage", "battery draw from
+       the grid", "stop replenishing the pack"
+     out of the battery -> no_discharge_window
+       "pack output", "battery supplying the campus", "discharge", "drawing FROM
+       the pack", "the pack must not export to the load"
+   A note mentioning solar only as background context is still about the battery if
+   the instruction targets the battery. Only use solar_reduction when the note says
+   the usable SOLAR OUTPUT itself changes.
+5. A note that does not change today's 24-hour electricity schedule is no_op.
    Staffing, menus, bookings, deadlines, meetings, paperwork, future months -> no_op.
-5. applies = true for every directive except no_op. no_op has applies = false and
+   CAREFUL: the scenario IS the next 24 hours, so "tomorrow", "tonight", "today",
+   "this evening" and "in the morning" all refer to the schedule you are building.
+   Those are NORMAL and must still produce a real directive.
+   Only mark a note no_op for timing when the change clearly falls OUTSIDE this
+   24-hour horizon: "next week", "next month", "from Monday", "once the new feeder
+   is installed", "going forward", "we are planning to", "starting next quarter".
+   If in doubt and the note names specific hours, produce the directive.
+6. applies = true for every directive except no_op. no_op has applies = false and
    structured_adjustment = null.
-6. Output ONE entry per note, in note_index order 0,1,...N-1. Never invent a type.
+7. Output ONE entry per note, in note_index order 0,1,...N-1. Never invent a type.
 
 Return ONLY a JSON array. No prose, no markdown."""
 
