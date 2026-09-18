@@ -1,0 +1,13 @@
+{
+  "_comment": "Ground truth for live_scenario_01. Note 0 is a solar_reduction; note 1 is a distractor. Optimal cost computed independently with an LP over the same constraint model.",
+  "directives": [
+    {"note_index": 0, "applies": true, "directive_type": "solar_reduction",
+     "structured_adjustment": {"hours": [13, 14], "factor": 0.2}},
+    {"note_index": 1, "applies": false, "directive_type": "no_op",
+     "structured_adjustment": null}
+  ],
+  "optimal_cost_bdt": 37960.0,
+  "optimal_total_grid_kwh": 2678.0,
+  "optimal_peak_grid_kwh": 192.0,
+  "effective_solar_overrides": {"13": 34.0, "14": 28.0}
+}
