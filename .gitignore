@@ -1,6 +1,7 @@
 .authorship-denylist
 PLAN.md
 *.pdf
+BUP_CSE_FEST_2026_Preli_Public_Sample_Cases.json
 .env
 *.env
 !.env.example
