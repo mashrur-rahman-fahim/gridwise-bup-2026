@@ -1,0 +1,42 @@
+name: docker-verify
+
+# QA check for this branch: proves the Dockerfile actually builds and serves
+# /health, independent of the publish job on main's ci.yml. Does not push -
+# main's ci.yml already builds+pushes to GHCR; this just verifies the image
+# runs and binds correctly from a clean build on this branch.
+
+on:
+  push:
+    branches: [Tinni]
+  workflow_dispatch:
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: build image
+        run: docker build -t gridwise:verify .
+
+      - name: run container
+        run: docker run -d --name gw -p 8000:8000 gridwise:verify
+
+      - name: wait for health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health >/dev/null; then break; fi
+            sleep 2
+          done
+          code=$(curl -s -o /tmp/health.json -w '%{http_code}' http://localhost:8000/health)
+          echo "status: $code"
+          cat /tmp/health.json
+          test "$code" = "200"
+          grep -q '"status"[[:space:]]*:[[:space:]]*"ok"' /tmp/health.json
+
+      - name: confirm bound to 0.0.0.0 not 127.0.0.1
+        run: docker port gw 8000 | grep -q '0.0.0.0:8000'
+
+      - name: container logs on failure
+        if: failure()
+        run: docker logs gw || true
