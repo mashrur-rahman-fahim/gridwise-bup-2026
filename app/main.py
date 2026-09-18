@@ -21,8 +21,17 @@ app = FastAPI(title="GridWise", version="1.0.0", docs_url=None, redoc_url=None)
 @app.exception_handler(RequestValidationError)
 async def _malformed_request(_: Request, exc: RequestValidationError):
     """The specification asks for 400 on a structurally invalid request; 422 is optional.
-    One consistent code keeps the contract simple."""
-    return JSONResponse(status_code=400, content={"error": "invalid request", "detail": exc.errors()[:5]})
+    One consistent code keeps the contract simple.
+
+    Only the field path and message are returned. pydantic puts the offending input
+    in each error, which for a non-JSON body is raw bytes - not serializable, and not
+    something to reflect back to a caller regardless.
+    """
+    detail = [
+        {"loc": ".".join(str(p) for p in err.get("loc", ())), "msg": str(err.get("msg", ""))}
+        for err in exc.errors()[:5]
+    ]
+    return JSONResponse(status_code=400, content={"error": "invalid request", "detail": detail})
 
 
 @app.exception_handler(Exception)

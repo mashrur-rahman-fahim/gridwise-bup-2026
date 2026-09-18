@@ -75,3 +75,34 @@ def test_accepts_valid(name, body):
 def test_rejects_invalid(name, body):
     with pytest.raises((ValidationError, ValueError, TypeError)):
         ScenarioIn(**body)
+
+
+# --------------------------------------------------------------- endpoint behaviour
+
+def _client():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.mark.parametrize("name,content,ctype,expected", [
+    ("broken json", b"{not json", "application/json", 400),
+    ("empty body", b"", "application/json", 400),
+    ("empty object", b"{}", "application/json", 400),
+    ("plain text body", b"hello", "text/plain", 400),
+    ("wrong content-type with json", b'{"a":1}', "text/plain", 400),
+    ("binary body", b"\x00\x01\x02\xff", "application/octet-stream", 400),
+])
+def test_malformed_requests_return_400_never_500(name, content, ctype, expected):
+    """Regression: serializing pydantic's error list leaked raw bytes into the
+    response encoder, which threw and turned a 400 into a 500."""
+    r = _client().request("POST", "/optimize-energy", content=content,
+                          headers={"Content-Type": ctype})
+    assert r.status_code == expected, f"{name}: got {r.status_code}"
+
+
+def test_error_body_does_not_echo_the_request():
+    r = _client().request("POST", "/optimize-energy", content=b"SENTINEL_VALUE_XYZ",
+                          headers={"Content-Type": "text/plain"})
+    assert r.status_code == 400
+    assert "SENTINEL_VALUE_XYZ" not in r.text
