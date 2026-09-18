@@ -5,12 +5,14 @@
 <style>
   :root{
     --bg:#f7f8fa; --panel:#fff; --ink:#15181d; --muted:#697280; --line:#e3e6ec;
-    --accent:#2f6df6; --accent-soft:#eaf0ff; --grid:#f0a33c; --solar:#f5c542;
-    --batt:#38a169; --warn:#c2410c; --radius:10px;
+    --accent:#2f6df6; --accent-soft:#eaf0ff;
+    --grid:#6b74d6; --solar:#f2b01e; --batt:#18a673;
+    --warn:#c2410c; --radius:10px;
   }
   @media (prefers-color-scheme:dark){
     :root{--bg:#0f1216;--panel:#171b21;--ink:#e8eaee;--muted:#98a1ae;--line:#272d36;
-          --accent:#5b8cff;--accent-soft:#1b2540;}
+          --accent:#5b8cff;--accent-soft:#1b2540;
+          --grid:#8b93e8; --solar:#f5c246; --batt:#2fc491;}
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
@@ -65,9 +67,11 @@
   .barcell{width:34%;padding-right:0}
   .stack{display:flex;height:13px;border-radius:3px;overflow:hidden;background:var(--bg)}
   .seg{height:100%}
+  .seg+.seg{box-shadow:-1px 0 0 var(--panel)}
   .act{font-size:11px;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
   .act.charge{color:var(--batt);border-color:var(--batt)}
-  .act.discharge{color:var(--accent);border-color:var(--accent)}
+  .act.discharge{color:var(--batt);border-color:var(--batt)}
+  .act.charge{opacity:.85}
   .legend{display:flex;gap:14px;font-size:11.5px;color:var(--muted);margin:10px 0 4px;flex-wrap:wrap}
   .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
   .err{background:#fff4ed;border:1px solid #f3c9ae;color:var(--warn);padding:10px 12px;border-radius:7px;font-size:13px}
@@ -233,8 +237,8 @@ function render(j, demand, ms){
         <div class="seg" style="width:${w(r.solar_used_kwh)};background:var(--solar)"></div>
         <div class="seg" style="width:${w(dis)};background:var(--batt)"></div>
       </div></td>
-      <td>${r.grid_kwh.toFixed(1)}</td>
-      <td>${r.solar_used_kwh.toFixed(1)}</td>
+      <td style="color:var(--grid);font-weight:560">${r.grid_kwh.toFixed(1)}</td>
+      <td style="color:${r.solar_used_kwh>0?"var(--solar)":"var(--muted)"}">${r.solar_used_kwh.toFixed(1)}</td>
       <td>${r.battery_action==="idle"?'<span class="act">idle</span>':`<span class="act ${r.battery_action}">${r.battery_action==="charge"?"+":"−"}${r.battery_kwh.toFixed(0)}</span>`}</td>
       <td>${r.battery_energy_after_kwh.toFixed(0)}</td>
       <td>${TARIFF[r.hour]}</td>
@@ -250,7 +254,7 @@ function render(j, demand, ms){
         <span><i class="sw" style="background:var(--batt)"></i>battery discharge</span>
       </div>
       <div style="overflow-x:auto"><table>
-        <thead><tr><th>hour</th><th class="barcell">energy mix</th><th>grid</th><th>solar</th><th>battery</th><th>stored</th><th>৳/kWh</th></tr></thead>
+        <thead><tr><th>hour</th><th class="barcell">energy mix</th><th style="color:var(--grid)">grid</th><th style="color:var(--solar)">solar</th><th>battery</th><th>stored</th><th>৳/kWh</th></tr></thead>
         <tbody>${rows}</tbody></table></div>
     </div>`;
 }
