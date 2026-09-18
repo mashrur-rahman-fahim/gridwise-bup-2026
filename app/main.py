@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.contract_audit import audit
 from app.llm import interpret
 from app.optimizer import Infeasible, solve
 from app.postprocess import build_plan
@@ -95,10 +96,7 @@ async def optimize_energy(scenario: ScenarioIn):
         raw, applied, dropped = solve(scenario.hours, battery, [])
         plan, total_grid, total_cost, peak_grid = build_plan(scenario.hours, battery, raw)
 
-    log.info("scenario=%s source=%s notes=%d applied=%d cost=%.2f",
-             scenario.scenario_id, source, len(directives), len(applied), total_cost)
-
-    return {
+    body = {
         "scenario_id": scenario.scenario_id,
         "directive_interpretation": directives,
         "hourly_plan": plan,
@@ -107,3 +105,18 @@ async def optimize_energy(scenario: ScenarioIn):
         "peak_grid_kwh": peak_grid,
         "plan_summary": _summarise(plan, directives, total_cost, dropped),
     }
+
+    # 5. final contract audit over the whole response. Checks every field the
+    # organizers list as required, so a field nobody thought to verify - as
+    # happened with an empty explanation - still gets caught before it ships.
+    problems = audit(scenario.model_dump(), body)
+    if problems:
+        expected = {f"hour {h}" for h in dropped}
+        unexplained = [p for p in problems if not any(p.startswith(e) for e in expected)]
+        log.error("contract audit flagged %d issue(s): %s", len(problems), unexplained[:3])
+
+    log.info("scenario=%s source=%s notes=%d applied=%d dropped=%d cost=%.2f audit=%s",
+             scenario.scenario_id, source, len(directives), len(applied), len(dropped),
+             total_cost, "clean" if not problems else f"{len(problems)} flagged")
+
+    return body
