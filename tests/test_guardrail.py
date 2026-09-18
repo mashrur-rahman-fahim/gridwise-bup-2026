@@ -157,3 +157,27 @@ def test_entries_are_returned_in_note_index_order():
     ])
     out = validate(repair(parse_model_output(entries)), 3, CAPACITY)
     assert [e["note_index"] for e in out] == [0, 1, 2]
+
+
+def test_explanation_is_never_empty():
+    """The specification lists explanation as a required field. Its wording is not
+    judged, but the field should not come back blank when the model omits it."""
+    from app.guardrail import all_no_op
+    cases = [
+        '[{"note_index":0,"applies":true,"directive_type":"solar_reduction",'
+        '"structured_adjustment":{"hours":[12,13],"factor":0.25}}]',
+        '[{"note_index":0,"applies":true,"directive_type":"max_grid_window",'
+        '"structured_adjustment":{"hours":[18],"max_grid_kwh":155},"explanation":""}]',
+        '[{"note_index":0,"applies":false,"directive_type":"no_op",'
+        '"structured_adjustment":null,"explanation":null}]',
+    ]
+    for raw in cases:
+        out = validate(repair(parse_model_output(raw)), 1, CAPACITY)
+        assert out[0]["explanation"].strip(), f"blank explanation for {raw[:60]}"
+    assert all_no_op(2)[0]["explanation"].strip()
+
+
+def test_model_supplied_explanation_is_preserved():
+    raw = ('[{"note_index":0,"applies":true,"directive_type":"no_charge_window",'
+           '"structured_adjustment":{"hours":[2,3]},"explanation":"Charger isolated."}]')
+    assert validate(repair(parse_model_output(raw)), 1, CAPACITY)[0]["explanation"] == "Charger isolated."

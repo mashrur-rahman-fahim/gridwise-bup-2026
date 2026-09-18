@@ -31,6 +31,31 @@ REQUIRED_KEYS: Dict[str, set] = {
 }
 
 
+def describe(directive_type: str, adjustment: Dict[str, Any]) -> str:
+    """Deterministic fallback explanation.
+
+    The specification requires an explanation on every entry. The wording is not
+    matched byte-for-byte, but the field should never come back empty, including
+    when the model omits it or when a note degrades to no_op.
+    """
+    if directive_type == "no_op" or not adjustment:
+        return "This note does not affect today's 24-hour energy schedule."
+    hours = adjustment.get("hours", [])
+    span = f"hour {hours[0]}" if len(hours) == 1 else f"hours {hours[0]}-{hours[-1]}"
+    if directive_type == "solar_reduction":
+        pct = round(adjustment["factor"] * 100)
+        return f"Usable solar limited to {pct}% of forecast during {span}."
+    if directive_type == "minimum_battery_reserve":
+        return f"Battery held at or above {adjustment['minimum_energy_kwh']:g} kWh during {span}."
+    if directive_type == "no_charge_window":
+        return f"Battery charging unavailable during {span}."
+    if directive_type == "no_discharge_window":
+        return f"Battery discharging unavailable during {span}."
+    if directive_type == "max_grid_window":
+        return f"Grid import capped at {adjustment['max_grid_kwh']:g} kWh during {span}."
+    return "Directive applied to the 24-hour schedule."
+
+
 class GuardrailError(ValueError):
     """Model output violated the specification."""
 
@@ -92,7 +117,7 @@ def validate(entries: Any, note_count: int, capacity_kwh: float) -> List[Dict[st
             raise GuardrailError("applies must be a boolean")
 
         adj = entry["structured_adjustment"]
-        explanation = str(entry.get("explanation", ""))[:300]
+        explanation = str(entry.get("explanation") or "").strip()[:300]
 
         if dtype == "no_op":
             if applies is not False:
@@ -100,7 +125,8 @@ def validate(entries: Any, note_count: int, capacity_kwh: float) -> List[Dict[st
             if adj is not None:
                 raise GuardrailError("no_op must have a null structured_adjustment")
             result.append({"note_index": index, "applies": False, "directive_type": "no_op",
-                           "structured_adjustment": None, "explanation": explanation})
+                           "structured_adjustment": None,
+                           "explanation": explanation or describe("no_op", None)})
             continue
 
         if applies is not True:
@@ -153,7 +179,8 @@ def validate(entries: Any, note_count: int, capacity_kwh: float) -> List[Dict[st
             clean["max_grid_kwh"] = float(cap)
 
         result.append({"note_index": index, "applies": True, "directive_type": dtype,
-                       "structured_adjustment": clean, "explanation": explanation})
+                       "structured_adjustment": clean,
+                       "explanation": explanation or describe(dtype, clean)})
 
     result.sort(key=lambda e: e["note_index"])
     return result
