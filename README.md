@@ -263,12 +263,22 @@ JSON
 
 ## Docker (fallback execution path)
 
-Exact pullable reference (tag and digest):
+Exact pullable reference:
 
 ```
 ghcr.io/mashrur-rahman-fahim/gridwise-bup-2026:v1
-ghcr.io/mashrur-rahman-fahim/gridwise-bup-2026@sha256:31fe316256fc5bb9fd63bdbb3c14d81f8766a25bc90f91259b0335f9b496df59
 ```
+
+`:v1` is re-pushed by CI on every merge to `main`, so it always matches the code in
+this repository. For an immutable reference, each build is also tagged with its
+commit, and the current one is:
+
+```
+ghcr.io/mashrur-rahman-fahim/gridwise-bup-2026:53943d3cb54481d07b6c6ff1a5413778883ed2f4
+ghcr.io/mashrur-rahman-fahim/gridwise-bup-2026@sha256:d5fcab80b8bcf7efdc429fecac6f864d2a1eec7a47c34f803f520d1a2bae63c6
+```
+
+That digest moves whenever `main` moves; `:v1` does not need updating.
 
 ```bash
 docker pull ghcr.io/mashrur-rahman-fahim/gridwise-bup-2026:v1
